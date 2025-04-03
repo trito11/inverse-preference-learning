@@ -1,7 +1,10 @@
 from functools import partial
 from typing import List, Optional, Type
 
+import gymnasium as gym
+# import gympip install minari
 import gym
+
 import torch
 from torch import distributions, nn
 from torch.nn import functional as F
@@ -205,8 +208,9 @@ class DiagonalGaussianMLPActor(nn.Module):
         **kwargs,
     ):
         super().__init__()
+        # print(f"Observation Space: {observation_space}, Type: {type(observation_space)}, Shape: {getattr(observation_space, 'shape', None)}")
         assert isinstance(observation_space, gym.spaces.Box) and len(observation_space.shape) == 1
-
+      
         self.state_dependent_log_std = state_dependent_log_std
         self.log_std_bounds = log_std_bounds
         self.squash_normal = squash_normal

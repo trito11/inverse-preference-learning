@@ -13,10 +13,12 @@ def try_wandb_setup(path, config):
         except:
             return
         project_dir = os.path.dirname(os.path.dirname(__file__))
+        
         wandb.init(
             project=os.path.basename(project_dir),
             name=os.path.basename(path),
-            config=config.flatten(separator="-"),
+            # config=config.flatten(separator="-"),
+            config={k.replace(".", "-"): v for k, v in config.flatten().items()},
             dir=os.path.join(os.path.dirname(project_dir), "wandb"),
         )
 

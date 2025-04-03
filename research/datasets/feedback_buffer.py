@@ -44,6 +44,11 @@ class PairwiseComparisonDataset(torch.utils.data.IterableDataset):
             self.action_1_buffer = utils.remove_float64(data["action_1"])
             self.action_2_buffer = utils.remove_float64(data["action_2"])
             self.label_buffer = utils.remove_float64(data["label"])
+            self.reward_1_buffer = utils.remove_float64(data["reward_1"])
+            self.reward_2_buffer = utils.remove_float64(data["reward_2"])
+            self.sum_reward_1_buffer = utils.remove_float64(data["sum_reward_1"])
+            self.sum_reward_2_buffer = utils.remove_float64(data["sum_reward_2"])
+
             self._size = len(self.label_buffer)
         else:
             # Construct the buffers
@@ -55,6 +60,14 @@ class PairwiseComparisonDataset(torch.utils.data.IterableDataset):
             )
             self.action_1_buffer = utils.np_dataset_alloc(action_space, self._capacity, begin_pad=(self.segment_size,))
             self.action_2_buffer = utils.np_dataset_alloc(action_space, self._capacity, begin_pad=(self.segment_size,))
+            self.reward_1_buffer = utils.np_dataset_alloc(0.5, self._capacity, begin_pad=(self.segment_size,))
+            self.reward_2_buffer = utils.np_dataset_alloc(0.5, self._capacity, begin_pad=(self.segment_size,))
+            self.sum_reward_1_buffer = utils.np_dataset_alloc(0.5, self._capacity)
+            self.sum_reward_2_buffer = utils.np_dataset_alloc(0.5, self._capacity)
+            print("sum_reward", self.sum_reward_2_buffer.shape)
+            print("reward", self.reward_2_buffer.shape)
+
+
             self.label_buffer = utils.np_dataset_alloc(0.5, self._capacity)
             self._size = 0
             self._idx = 0
@@ -99,6 +112,14 @@ class PairwiseComparisonDataset(torch.utils.data.IterableDataset):
             utils.set_in_batch(self.obs_2_buffer, queries["obs_2"], start, end)
             utils.set_in_batch(self.action_1_buffer, queries["action_1"], start, end)
             utils.set_in_batch(self.action_2_buffer, queries["action_2"], start, end)
+            print(self.reward_1_buffer.shape)
+            print(queries["reward_1"].shape)
+            utils.set_in_batch(self.reward_1_buffer, queries["reward_1"], start, end)
+            utils.set_in_batch(self.reward_2_buffer, queries["reward_2"], start, end)
+            utils.set_in_batch(self.sum_reward_1_buffer, queries["sum_reward_1"], start, end)
+            utils.set_in_batch(self.sum_reward_2_buffer, queries["sum_reward_2"], start, end)
+
+
             self.label_buffer[start:end] = labels
             self._idx = (self._idx + num_to_add) % self._capacity
             self._size = min(self._size + num_to_add, self._capacity)
@@ -109,6 +130,10 @@ class PairwiseComparisonDataset(torch.utils.data.IterableDataset):
             obs_2 = utils.get_from_batch(self.obs_2_buffer, idxs)
             action_1 = utils.get_from_batch(self.action_1_buffer, idxs)
             action_2 = utils.get_from_batch(self.action_2_buffer, idxs)
+            reward_1 = utils.get_from_batch(self.reward_1_buffer, idxs)
+            reward_2 = utils.get_from_batch(self.reward_2_buffer, idxs)
+            sum_reward_1 = utils.get_from_batch(self.sum_reward_1_buffer, idxs)
+            sum_reward_2 = utils.get_from_batch(self.sum_reward_2_buffer, idxs)
             label = self.label_buffer[idxs]
         else:
             # Note: subsample sequences currently do not support arbitrary obs/action spaces.
@@ -119,11 +144,16 @@ class PairwiseComparisonDataset(torch.utils.data.IterableDataset):
             obs_2 = self.obs_2_buffer[idxs, start:end]
             action_1 = self.action_1_buffer[idxs, start:end]
             action_2 = self.action_2_buffer[idxs, start:end]
+            reward_1 = self.reward_1_buffer[idxs, start:end]
+            reward_2 = self.reward_2_buffer[idxs, start:end]
+            sum_reward_1 = self.sum_reward_1_buffer[idxs]
+            sum_reward_2 = self.sum_reward_2_buffer[idxs]
+
             label = self.label_buffer[idxs]
 
         batch_size = len(idxs)
         discount = self.discount * np.ones(batch_size, dtype=np.float32) if self.batch_size > 1 else self.discount
-        return dict(obs_1=obs_1, obs_2=obs_2, action_1=action_1, action_2=action_2, label=label, discount=discount)
+        return dict(obs_1=obs_1, obs_2=obs_2, action_1=action_1, action_2=action_2, reward_1=reward_1, reward_2=reward_2, sum_reward_1=sum_reward_1, sum_reward_2=sum_reward_2, label=label, discount=discount)
 
     def save(self, path):
         # Save everything to the path via savez
@@ -132,6 +162,11 @@ class PairwiseComparisonDataset(torch.utils.data.IterableDataset):
             obs_2=utils.get_from_batch(self.obs_2_buffer, 0, self._size),
             action_1=utils.get_from_batch(self.action_1_buffer, 0, self._size),
             action_2=utils.get_from_batch(self.action_2_buffer, 0, self._size),
+            reward_1=utils.get_from_batch(self.reward_1_buffer, 0, self._size),
+            reward_2=utils.get_from_batch(self.reward_2_buffer, 0, self._size),
+            sum_reward_1=utils.get_from_batch(self.sum_reward_1_buffer, 0, self._size),
+            sum_reward_2=utils.get_from_batch(self.sum_reward_2_buffer, 0, self._size),
+
             label=self.label_buffer[: self._size],
         )
         data = utils.flatten_dict(data)

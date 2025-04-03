@@ -1,0 +1,4 @@
+[ZoneTransfer]
+ZoneId=3
+ReferrerUrl=http://rail.eecs.berkeley.edu/datasets/offline_rl/gym_mujoco_v2/
+HostUrl=http://rail.eecs.berkeley.edu/datasets/offline_rl/gym_mujoco_v2/hopper_expert-v2.hdf5

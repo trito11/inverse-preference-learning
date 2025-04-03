@@ -32,12 +32,14 @@ class SawyerEnv(gym.Env):
 
     def step(self, action):
         self._episode_steps += 1
-        obs, reward, done, info = self._env.step(action)
+        obs, reward, done,_ , info = self._env.step(action)
         if self._episode_steps == self._max_episode_steps:
             done = True
             info["discount"] = 1.0  # Ensure infinite boostrap.
         # Add the underlying state to the info
-        state = self._env.sim.get_state()
+
+        state = self._env.data
+        # state = self._env._get_obs()
         info["state"] = np.concatenate((state.qpos, state.qvel), axis=0)
         return obs.astype(np.float32), reward, done, info
 
@@ -47,7 +49,9 @@ class SawyerEnv(gym.Env):
 
     def reset(self, **kwargs):
         self._episode_steps = 0
-        return self._env.reset(**kwargs).astype(np.float32)
+        obs,_=self._env.reset(**kwargs)
+
+        return obs.astype(np.float32)
 
     def render(self, mode="rgb_array", width=640, height=480):
         assert mode == "rgb_array", "Only RGB array is supported"

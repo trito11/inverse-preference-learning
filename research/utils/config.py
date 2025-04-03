@@ -259,5 +259,7 @@ class Config(BareConfig):
             eval_env = None
         else:
             eval_env = self.get_eval_env()
+            # print(eval_env)
+            # exit()
         # Return the trainer...
         return Trainer(eval_env, **self["trainer_kwargs"])

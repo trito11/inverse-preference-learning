@@ -1,0 +1,76 @@
+alg: RRD_IQL
+alg_kwargs:
+  beta: 0.33333333
+  expectile: 0.7
+  offline_steps: -1
+  random_steps: 0
+checkpoint: null
+dataset: D4RLDataset
+dataset_kwargs:
+  action_eps: 1.0e-05
+  batch_size: 256
+  d4rl_path: ../datasets/d4rl/
+  discount: 0.99
+  distributed: false
+  name: hopper-medium-replay-v2
+  normalize_reward: true
+env: null
+env_kwargs: {}
+eval_env: hopper-medium-replay-v2
+eval_env_kwargs: {}
+network: ActorCriticValuePolicy
+network_kwargs:
+  actor_class: DiagonalGaussianMLPActor
+  actor_kwargs:
+    dropout: 0.0
+    log_std_bounds:
+    - -5
+    - 2
+    log_std_tanh: false
+    output_act:
+    - import
+    - torch.nn
+    - Tanh
+    squash_normal: false
+    state_dependent_log_std: false
+  critic_class: ContinuousMLPCritic
+  critic_kwargs:
+    ensemble_size: 2
+  hidden_layers:
+  - 256
+  - 256
+  ortho_init: true
+  value_class: MLPValue
+  value_kwargs:
+    ensemble_size: 1
+optim: Adam
+optim_kwargs:
+  lr: 0.0003
+processor: null
+processor_kwargs: {}
+schedule:
+  actor:
+  - import
+  - torch.optim.lr_scheduler
+  - CosineAnnealingLR
+schedule_kwargs:
+  actor:
+    T_max: 1000000
+seed: null
+trainer_kwargs:
+  eval_fn: eval_policy
+  eval_freq: 5000
+  eval_kwargs:
+    num_ep: 10
+  log_freq: 500
+  loss_metric: reward
+  profile_freq: 500
+  total_steps: 1000000
+  train_dataloader_kwargs:
+    batch_size: null
+    collate_fn: null
+    num_workers: 0
+validation_dataset: null
+validation_dataset_kwargs: null
+wrapper: null
+wrapper_kwargs: {}

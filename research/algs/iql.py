@@ -120,6 +120,7 @@ class IQL(OffPolicyAlgorithm):
             next_v = torch.mean(next_vs, dim=0, keepdim=True)  # Min trick is not used on value.
             target = batch["reward"] + batch["discount"] * next_v  # use the predicted reward.
         qs = self.network.critic(obs, action)
+        r_qv = qs - (batch["discount"] * next_v).expand(qs.shape[0], -1)
         q_loss = torch.nn.functional.mse_loss(qs, target.expand(qs.shape[0], -1), reduction="none").mean()
 
         self.optim["critic"].zero_grad(set_to_none=True)
@@ -146,6 +147,7 @@ class IQL(OffPolicyAlgorithm):
             v=vs.mean().item(),
             q=qs.mean().item(),
             adv=adv.mean().item(),
+            r_qv=r_qv.mean().item(),
         )
 
     def _predict(self, batch: Dict, sample: bool = False) -> torch.Tensor:

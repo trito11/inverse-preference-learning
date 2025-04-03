@@ -203,6 +203,9 @@ class IPL_IQL(OffPolicyAlgorithm):
             queries = {k: v[top_k_index] for k, v in queries.items()}
 
         labels, metrics = self._oracle_label(queries)
+        print(labels.shape)
+        print(labels)
+        exit()
         all_metrics.update(metrics)
 
         feedback_added = labels.shape[0]
@@ -344,6 +347,10 @@ class IPL_IQL(OffPolicyAlgorithm):
         reward = qs - discount * next_v
         assert reward.shape[1] == B_total
         E = reward.shape[0]
+        # print("reward shape",reward.shape)
+        # print(E, B_fb, S_fb)
+        
+
 
         # Now re-chunk everything to get the logits
         r1, r2, rr = torch.split(reward, split, dim=1)  # Now slips over dim 1 because of ensemble.
@@ -352,8 +359,21 @@ class IPL_IQL(OffPolicyAlgorithm):
 
         # Compute the Q-loss over the imitation data
         labels = feedback_batch["label"].float().unsqueeze(0).expand(E, -1)  # Shape (E, B)
+        labels_reward = 1.0 * (feedback_batch["sum_reward_1"] < feedback_batch["sum_reward_2"])
+        labels_reward = labels_reward.float().unsqueeze(0).expand(E, -1)
+        # print(labels_reward.dtype)
+        # print(labels_reward.shape)
+        # print("r1",r1.shape)
+        # print("label sshape",labels.shape)
+        # print(feedback_batch["obs_1"].shape)
+        # print("label",labels.dtype)
+        # print(logits)
+        # exit()
         assert labels.shape == logits.shape
-        q_loss = self.reward_criterion(logits, labels).mean()
+        assert labels_reward.shape == logits.shape
+        # q_loss = self.reward_criterion(logits, labels).mean()
+        q_loss = self.reward_criterion(logits, labels_reward).mean()
+
 
         # Compute the Chi2 Loss over EVERYTHING, including replay data
         if self.chi2_replay_weight is not None and B_r > 0:

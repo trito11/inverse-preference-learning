@@ -98,16 +98,29 @@ class PreferenceIQL(OffPolicyAlgorithm):
         E, B_times_S = reward.shape
         assert B_times_S == B * S
         r1, r2 = torch.chunk(reward.view(E, B, S), 2, dim=1)  # Should return two (E, B, S)
+        re1, re2 = batch["reward_1"].view(r1.shape), batch["reward_2"].view(r2.shape)
+        fb_reward_loss = 0.5 *( torch.nn.functional.mse_loss(r1, re1).mean() + torch.nn.functional.mse_loss(r2, re2).mean())
+
         logits = r2.sum(dim=2) - r1.sum(dim=2)  # Sum across sequence dim, (E, B)
         labels = batch["label"].float().unsqueeze(0).expand(E, -1)  # Shape (E, B)
+        sum_re_1, sum_re_2 = batch["sum_reward_1"].float().unsqueeze(0).expand(E, -1), batch["sum_reward_1"].float().unsqueeze(0).expand(E, -1)
+        # labels_re = 1.0 * (sum_re_1 < sum_re_2)
+        labels_re = 0.5 + 0.5 * (sum_re_1 / sum_re_2 < 0.8) - 0.5 * (sum_re_1 / sum_re_2 > 1.2)
+        # labels_re = sum_re_2/ (sum_re_1+sum_re_2)
+
         assert labels.shape == logits.shape
-        reward_loss = self.reward_criterion(logits, labels).mean()
+        assert labels_re.shape == logits.shape
+
+
+        # reward_loss = self.reward_criterion(logits, labels).mean()
+        reward_loss = self.reward_criterion(logits, labels_re).mean()
+
 
         self.optim["reward"].zero_grad(set_to_none=True)
         reward_loss.backward()
         self.optim["reward"].step()
 
-        return dict(reward_loss=reward_loss.item(), reward=reward.mean().item())
+        return dict(reward_loss=reward_loss.item(), reward_fb=reward.mean().item(),reward_fb_real= batch["reward_1"].mean().item(), feedback_reward_loss=fb_reward_loss.item())
 
     def _update_iql(self, batch):
         # Run the encoders
@@ -155,9 +168,14 @@ class PreferenceIQL(OffPolicyAlgorithm):
             next_vs = self.network.value(next_obs)
             next_v = torch.mean(next_vs, dim=0, keepdim=True)  # Min trick is not used on value.
             reward = self.network.reward(obs, action)
+            replay_reward = batch["reward"].unsqueeze(0)
+            replay_reward_loss = torch.nn.functional.mse_loss(reward, replay_reward).mean()
+         
             target = reward + batch["discount"] * next_v  # use the predicted reward.
         qs = self.network.critic(obs, action)
         q_loss = torch.nn.functional.mse_loss(qs, target.expand(qs.shape[0], -1), reduction="none").mean()
+        
+
 
         self.optim["critic"].zero_grad(set_to_none=True)
         q_loss.backward()
@@ -170,7 +188,9 @@ class PreferenceIQL(OffPolicyAlgorithm):
             v=vs.mean().item(),
             q=qs.mean().item(),
             adv=adv.mean().item(),
-            reward=reward.mean().item(),
+            reward_rp=reward.mean().item(),
+            replay_reward_loss=replay_reward_loss.item(),
+            reward_rp_real=replay_reward.mean().item(),
         )
 
     def setup(self):
@@ -229,6 +249,7 @@ class PreferenceIQL(OffPolicyAlgorithm):
                     self.network.encoder.parameters(), self.target_network.encoder.parameters()
                 ):
                     target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+
 
         return all_metrics
 
